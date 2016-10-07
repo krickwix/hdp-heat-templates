@@ -1,0 +1,23 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  image:
+    type: string
+  ambari_server_flavor:
+    type: string
+  key_name:
+    type: string
+  signal_transport:
+    type: string
+    default: TEMP_URL_SIGNAL
+  software_config_transport:
+    type: string
+    default: POLL_TEMP_URL
+
+resources:
+  ambari_server:
+    type: HDP::AmbariServer
+    properties:
+      image: { get_param: image }
+      flavor: { get_param: ambari_server_flavor }
+      key_name: { get_param: key_name }

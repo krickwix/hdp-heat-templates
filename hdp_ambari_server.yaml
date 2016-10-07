@@ -1,0 +1,58 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  image:
+    type: string
+  flavor:
+    type: string
+  key_name:
+    type: string
+  signal_transport:
+    type: string
+    default: TEMP_URL_SIGNAL
+  software_config_transport:
+    type: string
+    default: POLL_TEMP_URL
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data_format: SOFTWARE_CONFIG
+      software_config_transport: { get_param: software_config_transport }
+
+  common_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ansible
+      config:
+        get_file: ansible/common.ansible
+
+  common_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: common_config
+      server:
+        get_resource: server
+
+  ambari_server_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ansible
+      config:
+        get_file: ansible/ambari_server.ansible
+
+  ambari_server_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: common_deployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: ambari_server_config
+      server:
+        get_resource: server

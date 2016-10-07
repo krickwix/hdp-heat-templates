@@ -1,0 +1,7 @@
+parameter_defaults:
+  image: centos-oscc
+  ambari_server_flavor: m1.large
+  key_name: fandrieu
+
+  signal_transport: TEMP_URL_SIGNAL
+  software_config_transport: POLL_TEMP_URL
