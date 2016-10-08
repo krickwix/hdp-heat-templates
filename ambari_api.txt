@@ -1,0 +1,18 @@
+* get the registered hosts
+GET /hosts
+
+
+
+* create a cluster
+POST /clusters/{cluster_name}
+
+POST /clusters/c1
+
+{
+  "Clusters": {
+    "version" : "HDP-1.2.0”
+  }
+}
+
+* create a host
+POST /clusters/{cluster_name}/hosts/{host_name}

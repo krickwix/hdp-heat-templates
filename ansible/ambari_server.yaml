@@ -4,11 +4,11 @@
   hosts: localhost
 
   vars:
-    java_home: "/opt/jdk1.8.0_05"
+    java_home: "/opt/jdk1.8.0_74"
 
   tasks:
     - name: setup ambari repo
-      command: "wget -nv http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.4.1.0/ambari.repo -O /etc/yum.repos.d/ambari.repo"
+      command: "wget -nv http://10.60.17.100/fandrieu/mirrors/ambari/centos7/Updates-ambari-2.4.1.0.repo -O /etc/yum.repos.d/ambari.repo"
 
     - name: install ambari-server
       yum: name=ambari-server state=latest
@@ -26,6 +26,9 @@
 
     - name : check if ambari-server is installed
       wait_for : path=/tmp/ambari-install-output search_regex="completed successfully"
+
+    - name : Force ROOT variable in the crappy init file
+      lineinfile: dest=/etc/rc.d/init.d/ambari-server regexp="^export ROOT=" line="export ROOT=/"
 
     - name : start ambari server and enabled at reboot
       service : name=ambari-server state=restarted enabled=yes

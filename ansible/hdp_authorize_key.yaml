@@ -1,0 +1,10 @@
+---
+- name: Deploy KeyPair
+  connection: local
+  hosts: localhost
+
+  vars:
+    ansible_public_key: public_key
+
+  tasks:
+    - authorized_key: user=root key="{{ ansible_public_key }}"

@@ -3,16 +3,43 @@ heat_template_version: 2014-10-16
 parameters:
   image:
     type: string
-  ambari_server_flavor:
-    type: string
   key_name:
     type: string
+
   signal_transport:
     type: string
-    default: TEMP_URL_SIGNAL
   software_config_transport:
     type: string
-    default: POLL_TEMP_URL
+
+  ambari_server_flavor:
+    type: string
+  master_flavor:
+    type: string
+  slave_flavor:
+    type: string
+  edge_flavor:
+    type: string
+
+  master_count:
+    type: number
+  slave_count:
+    type: number
+  edge_count:
+    type: number
+
+  master_volume_size:
+    type: number
+  slave_volume_size:
+    type: number
+  edge_volume_size:
+    type: number
+
+  master_volume_device:
+    type: string
+  slave_volume_device:
+    type: string
+  edge_volume_device:
+    type: string
 
 resources:
   ambari_server:
@@ -21,3 +48,94 @@ resources:
       image: { get_param: image }
       flavor: { get_param: ambari_server_flavor }
       key_name: { get_param: key_name }
+      signal_transport: { get_param: signal_transport }
+      software_config_transport: { get_param: software_config_transport }
+      volume_size: { get_param: master_volume_size }
+      volume_device: { get_param: master_volume_device }
+      hadoop_public_key: { get_attr: [hadoop_key, public_key] }
+      hadoop_private_key: { get_attr: [hadoop_key, private_key] }
+
+  hdp_cluster:
+    type: HDP::Cluster
+    depends_on: ambari_server
+    properties:
+      image: { get_param: image }
+      master_flavor: { get_param: master_flavor }
+      slave_flavor: { get_param: slave_flavor }
+      edge_flavor: { get_param: edge_flavor }
+      ambari_ip_address: { get_attr: [ambari_server, ip_address]}
+      slave_count: { get_param: slave_count }
+      master_count: { get_param: master_count }
+      edge_count: { get_param: edge_count }
+      master_volume_size: { get_param: master_volume_size }
+      slave_volume_size: { get_param: slave_volume_size }
+      edge_volume_size: {get_param: edge_volume_size}
+      master_volume_device: { get_param: master_volume_device }
+      slave_volume_device: { get_param: slave_volume_device }
+      edge_volume_device: { get_param: edge_volume_device }
+      signal_transport: { get_param: signal_transport }
+      software_config_transport: { get_param: software_config_transport }
+      key_name: { get_param: key_name }
+      hadoop_public_key: { get_attr: [hadoop_key, public_key] }
+
+  hadoop_key:
+    type: OS::Nova::KeyPair
+    properties:
+      save_private_key: true
+      name: { get_param: 'OS::stack_name' }
+
+  hdp_deploy_0_config:
+    type: HDP::DeployConfig
+    properties:
+      masters_ip: {get_attr: [hdp_cluster, masters_ip]}
+      ambari_ip: {get_attr: [ambari_server, ip_address]}
+      slaves_ip: {get_attr: [hdp_cluster, slaves_ip]}
+      edges_ip: {get_attr: [hdp_cluster, edges_ip]}
+      ansible_destdir: /srv/ansible-hadoop
+
+  hdp_deploy_0_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_attr: [hdp_deploy_0_config,config_id]
+      server:
+        get_attr: [ambari_server,server]
+
+  hdp_bootstrap_config:
+        type: OS::Heat::SoftwareConfig
+        properties:
+          group: script
+          config: |
+            #!/bin/bash
+            cd /srv/ansible-hadoop
+            ./bootstrap_static.sh 2>&1 | tee bootstrap_static.log
+
+  hdp_bootstrap_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: [hdp_cluster, hdp_deploy_0_deployment]
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: hdp_bootstrap_config
+      server:
+        get_attr: [ambari_server,server]
+
+  hdp_hortonworks_config:
+        type: OS::Heat::SoftwareConfig
+        properties:
+          group: script
+          config: |
+            #!/bin/bash
+            cd /srv/ansible-hadoop
+            ./hortonworks_static.sh 2>&1 | tee hortonworks_static.log
+
+  hdp_hortonworks_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: hdp_bootstrap_deployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: hdp_hortonworks_config
+      server:
+        get_attr: [ambari_server,server]

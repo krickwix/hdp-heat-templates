@@ -1,0 +1,57 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  masters_ip:
+    type: comma_delimited_list
+  slaves_ip:
+    type: comma_delimited_list
+  edges_ip:
+    type: comma_delimited_list
+  ambari_ip:
+    type: string
+
+  ansible_destdir:
+    type: string
+
+resources:
+  hdp_config_impl:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ansible
+      config:
+        str_replace:
+          template: { get_file: ansible/hdp_deploy.yaml }
+          params:
+            ansible_destdir: { get_param: ansible_destdir }
+            ansible_master_nodes:
+              str_replace:
+                template: "['SERVERS_LIST','AMBARI_SERVER']"
+                params:
+                  SERVERS_LIST:
+                    list_join:
+                    - "','"
+                    - {get_param: masters_ip}
+                  AMBARI_SERVER: { get_param: ambari_ip }
+            ansible_slave_nodes:
+              str_replace:
+                template: "['SERVERS_LIST']"
+                params:
+                  SERVERS_LIST:
+                    list_join:
+                    - "','"
+                    - {get_param: slaves_ip}
+
+            ansible_edge_nodes:
+              str_replace:
+                template: "['SERVERS_LIST']"
+                params:
+                  SERVERS_LIST:
+                    list_join:
+                    - "','"
+                    - {get_param: edges_ip}
+
+outputs:
+  config_id:
+    description: The ID of the hdp_config_impl resource.
+    value:
+      {get_resource: hdp_config_impl}

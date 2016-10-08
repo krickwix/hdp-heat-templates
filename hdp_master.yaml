@@ -3,17 +3,9 @@ heat_template_version: 2014-10-16
 parameters:
   image:
     type: string
-    description: Instance image
   flavor:
     type: string
-    description: Instance size
   key_name:
-    type: string
-    description: ssh key pair name
-
-  volume_size:
-    type: number
-  volume_device:
     type: string
 
   signal_transport:
@@ -21,13 +13,19 @@ parameters:
   software_config_transport:
     type: string
 
-  hadoop_public_key:
+  ambari_ip_address:
     type: string
-  hadoop_private_key:
+
+  master_volume_size:
+    type: number
+  master_volume_device:
+    type: string
+
+  hadoop_public_key:
     type: string
 
 resources:
-  server:
+  hdp_master_server:
     type: OS::Nova::Server
     properties:
       image: { get_param: image }
@@ -39,15 +37,15 @@ resources:
   volume:
     type: OS::Cinder::Volume
     properties:
-      size: { get_param: volume_size }
+      size: { get_param: master_volume_size }
       description: Volume for hadoop master
 
   volume_attachment:
     type: OS::Cinder::VolumeAttachment
     properties:
       volume_id: { get_resource: volume }
-      instance_uuid: { get_resource: server }
-      mountpoint: { get_param: volume_device }
+      instance_uuid: { get_resource: hdp_master_server }
+      mountpoint: { get_param: master_volume_device }
 
   common_config:
     type: OS::Heat::SoftwareConfig
@@ -63,57 +61,48 @@ resources:
       config:
         get_resource: common_config
       server:
-        get_resource: server
+        get_resource: hdp_master_server
 
-  ambari_server_config:
+  ambari_agent_config:
     type: OS::Heat::SoftwareConfig
     properties:
       group: ansible
       config:
-        get_file: ansible/ambari_server.yaml
+       str_replace:
+          template: { get_file: ansible/ambari_agent.yaml }
+          params:
+            ambari_ip_address: { get_param: ambari_ip_address }
 
-  ambari_server_deployment:
+  ambari_agent_deployment:
     type: OS::Heat::SoftwareDeployment
     depends_on: common_deployment
     properties:
       signal_transport: { get_param: signal_transport }
       config:
-        get_resource: ambari_server_config
+        get_resource: ambari_agent_config
       server:
-        get_resource: server
+        get_resource: hdp_master_server
 
-  hdp_deploy_key_config:
-        type: OS::Heat::SoftwareConfig
-        properties:
-          group: script
-          config:
-            str_replace:
-              template: |
-                #!/bin/bash
-                printf "%b" "PUBKEY" > /root/.ssh/id_rsa.pub
-                chmod 600 /root/.ssh/id_rsa.pub
-                printf "%b" "KEY" > /root/.ssh/id_rsa
-                chmod 600 /root/.ssh/id_rsa
-                cat << EOF >> /home/centos/.ssh/authorized_keys
-                PUBKEY
-                EOF
-              params:
-                KEY: { get_param: hadoop_private_key }
-                PUBKEY: { get_param: hadoop_public_key }
+  hdp_authorize_key_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config:
+       str_replace:
+          template: { get_file: add_authorized_key.sh }
+          params:
+            KEY: { get_param: hadoop_public_key }
 
-  hdp_deploy_key_deployment:
+  hdp_authorize_key_deployment:
     type: OS::Heat::SoftwareDeployment
     properties:
       signal_transport: { get_param: signal_transport }
       config:
-        get_resource: hdp_deploy_key_config
+        get_resource: hdp_authorize_key_config
       server:
-        get_resource: server
+        get_resource: hdp_master_server
 
 outputs:
-  server:
-    value: { get_resource: server }
   ip_address:
-    value: { get_attr: [server, first_address] }
-    description: |
-      The Ambari server IP address
+    value: { get_attr: [hdp_master_server, first_address] }
+    description: The master server IP address

@@ -1,0 +1,33 @@
+---
+- name: Ambari Agent deployment
+  connection: local
+  hosts: localhost
+
+  vars:
+    masters_ip: ansible_master_nodes
+    slaves_ip: ansible_slave_nodes
+    edges_ip: ansible_edge_nodes
+    dest_dir: ansible_destdir
+
+  tasks:
+    - name: get the ansible playbook
+      git: repo=https://github.com/krickwix/ansible-hadoop.git dest={{ dest_dir }} version=pnda-hdp
+
+    - name: delete the inventory file
+      file: path={{ dest_dir }}/inventory/static state=absent
+
+    - name: create the inventory file
+      lineinfile: dest={{ dest_dir }}/inventory/static line=[master-nodes] create=yes
+
+    - lineinfile: dest={{ dest_dir }}/inventory/static line='master{{ item.0 }} ansible_host={{ item.1 }} ansible_user=centos'
+      with_indexed_items: "{{ masters_ip }}"
+
+    - lineinfile: dest={{ dest_dir }}/inventory/static line=[slave-nodes]
+
+    - lineinfile: dest={{ dest_dir }}/inventory/static line='slave{{ item.0 }} ansible_host={{ item.1 }} ansible_user=centos'
+      with_indexed_items: "{{ slaves_ip }}"
+
+    - lineinfile: dest={{ dest_dir }}/inventory/static line=[edge-nodes]
+
+    - lineinfile: dest={{ dest_dir }}/inventory/static line='edge{{ item.0 }} ansible_host={{ item.1 }} ansible_user=centos'
+      with_indexed_items: "{{ edges_ip }}"

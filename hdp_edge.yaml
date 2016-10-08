@@ -1,0 +1,108 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  image:
+    type: string
+  flavor:
+    type: string
+  key_name:
+    type: string
+
+  signal_transport:
+    type: string
+  software_config_transport:
+    type: string
+
+  ambari_ip_address:
+    type: string
+
+  edge_volume_size:
+    type: number
+  edge_volume_device:
+    type: string
+
+  hadoop_public_key:
+    type: string
+
+resources:
+  hdp_edge_server:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data_format: SOFTWARE_CONFIG
+      software_config_transport: { get_param: software_config_transport }
+
+  volume:
+    type: OS::Cinder::Volume
+    properties:
+      size: { get_param: edge_volume_size }
+      description: Volume for hadoop edge
+
+  volume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: volume }
+      instance_uuid: { get_resource: hdp_edge_server }
+      mountpoint: { get_param: edge_volume_device }
+
+  common_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ansible
+      config:
+        get_file: ansible/common.yaml
+
+  common_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: common_config
+      server:
+        get_resource: hdp_edge_server
+
+  ambari_agent_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ansible
+      config:
+       str_replace:
+          template: { get_file: ansible/ambari_agent.yaml }
+          params:
+            ambari_ip_address: { get_param: ambari_ip_address }
+
+  ambari_agent_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: common_deployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: ambari_agent_config
+      server:
+        get_resource: hdp_edge_server
+
+  hdp_authorize_key_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config:
+       str_replace:
+          template: { get_file: add_authorized_key.sh }
+          params:
+            KEY: { get_param: hadoop_public_key }
+
+  hdp_authorize_key_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      signal_transport: { get_param: signal_transport }
+      config:
+        get_resource: hdp_authorize_key_config
+      server:
+        get_resource: hdp_edge_server
+
+outputs:
+  ip_address:
+    value: { get_attr: [hdp_edge_server, first_address] }
+    description: The edge server IP address

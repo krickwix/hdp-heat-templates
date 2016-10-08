@@ -1,7 +1,19 @@
 parameter_defaults:
   image: centos-oscc
-  ambari_server_flavor: m1.large
+  ambari_server_flavor: m1.medium
   key_name: fandrieu
-
   signal_transport: TEMP_URL_SIGNAL
   software_config_transport: POLL_TEMP_URL
+  ambari_server_flavor: m1.xlarge
+  master_flavor: m1.xlarge
+  slave_flavor: m1.xlarge
+  edge_flavor: m1.xlarge
+  master_count: 2
+  slave_count: 3
+  edge_count: 1
+  master_volume_size: 250
+  slave_volume_size: 1024
+  edge_volume_size: 250
+  master_volume_device: /dev/vdb
+  slave_volume_device: /dev/vdb
+  edge_volume_device: /dev/vdb

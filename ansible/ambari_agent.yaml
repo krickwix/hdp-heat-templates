@@ -1,0 +1,36 @@
+---
+- name: Ambari Agent deployment
+  connection: local
+  hosts: localhost
+
+  vars:
+    java_home: "/opt/jdk1.8.0_74"
+    ambari_server: "ambari_ip_address"
+
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reload
+      when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "7"
+
+    - name: Restart ambari-agent
+      service: name=ambari-agent state=restarted
+
+  tasks:
+    - name: setup ambari repo
+      command: "wget -nv http://10.60.17.100/fandrieu/mirrors/ambari/centos7/Updates-ambari-2.4.1.0.repo -O /etc/yum.repos.d/ambari.repo"
+
+    - name: Ensure required packages are installed (yum)
+      yum:
+        name: "{{ item }}"
+        update_cache: no
+        state: installed
+      with_items:
+        - ambari-agent
+      notify: Reload systemd
+      when: ansible_os_family == "RedHat"
+
+    - name: Configure the Ambari agent
+      lineinfile: dest=/etc/ambari-agent/conf/ambari-agent.ini regexp='^hostname=' line='hostname={{ ambari_server }}' state=present
+
+    - name: Make sure ambari-agent is running
+      service: name=ambari-agent state=started enabled=yes

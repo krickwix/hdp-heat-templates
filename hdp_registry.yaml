@@ -1,3 +1,7 @@
 resource_registry:
   HDP::AmbariServer: hdp_ambari_server.yaml
-  
+  HDP::Cluster: hdp_cluster.yaml
+  HDP::Master: hdp_master.yaml
+  HDP::Slave: hdp_slave.yaml
+  HDP::Edge: hdp_edge.yaml
+  HDP::DeployConfig: hdp_deploy_config.yaml

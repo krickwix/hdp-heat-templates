@@ -1,0 +1,106 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  image:
+    type: string
+  key_name:
+    type: string
+
+  signal_transport:
+    type: string
+  software_config_transport:
+    type: string
+
+  master_flavor:
+    type: string
+  slave_flavor:
+    type: string
+  edge_flavor:
+    type: string
+
+  master_count:
+    type: number
+  slave_count:
+    type: number
+  edge_count:
+    type: number
+
+  ambari_ip_address:
+    type: string
+
+  master_volume_size:
+    type: number
+  slave_volume_size:
+    type: number
+  edge_volume_size:
+    type: number
+
+  master_volume_device:
+    type: string
+  slave_volume_device:
+    type: string
+  edge_volume_device:
+    type: string
+
+  hadoop_public_key:
+    type: string
+
+resources:
+  hdp_masters:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: master_count }
+      resource_def:
+        type: HDP::Master
+        properties:
+          image: { get_param: image }
+          flavor: { get_param: master_flavor }
+          key_name: { get_param: key_name }
+          software_config_transport: { get_param: software_config_transport }
+          signal_transport: { get_param: signal_transport }
+          ambari_ip_address: { get_param: ambari_ip_address }
+          master_volume_size: { get_param: master_volume_size }
+          master_volume_device: { get_param: master_volume_device }
+          hadoop_public_key: { get_param: hadoop_public_key }
+
+  hdp_slaves:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: slave_count }
+      resource_def:
+        type: HDP::Slave
+        properties:
+          image: { get_param: image }
+          flavor: { get_param: slave_flavor }
+          key_name: { get_param: key_name }
+          software_config_transport: { get_param: software_config_transport }
+          signal_transport: { get_param: signal_transport }
+          ambari_ip_address: { get_param: ambari_ip_address }
+          slave_volume_size: { get_param: slave_volume_size }
+          slave_volume_device: { get_param: slave_volume_device }
+          hadoop_public_key: { get_param: hadoop_public_key }
+
+  hdp_edges:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: edge_count }
+      resource_def:
+        type: HDP::Edge
+        properties:
+          image: { get_param: image }
+          flavor: { get_param: edge_flavor }
+          key_name: { get_param: key_name }
+          software_config_transport: { get_param: software_config_transport }
+          signal_transport: { get_param: signal_transport }
+          ambari_ip_address: { get_param: ambari_ip_address }
+          edge_volume_device: { get_param: edge_volume_device }
+          edge_volume_size: { get_param: edge_volume_size }
+          hadoop_public_key: { get_param: hadoop_public_key }
+          
+outputs:
+  slaves_ip:
+    value: { get_attr: [hdp_slaves, ip_address] }
+  masters_ip:
+    value: { get_attr: [hdp_masters, ip_address] }
+  edges_ip:
+    value: { get_attr: [hdp_edges, ip_address] }
